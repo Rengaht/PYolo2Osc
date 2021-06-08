@@ -12,6 +12,9 @@
 #define VideoWidth 640
 #define VideoHeight 480
 
+
+#define TRACKING_ID_HISTROY 30
+
 class ofApp : public ofBaseApp{
 
 	public:
@@ -34,6 +37,7 @@ class ofApp : public ofBaseApp{
 
 		ofxYolo2 yolo;
 		std::vector<bbox_t> detections;
+		map<int, int> labelCount;
 
 		ofxOscSender sender;
 	private:

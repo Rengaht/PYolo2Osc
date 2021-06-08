@@ -9,6 +9,7 @@ void ofApp::setup(){
 
 	//darknet.init(cfgfile, weightfile, namesfile);
 	yolo.setup();
+	yolo.trackHistory = TRACKING_ID_HISTROY;
 
 
 	useCamera = false;
@@ -50,9 +51,28 @@ void ofApp::update(){
 		video.update();
 		
 		if (video.isFrameNew()) {
+
 			detections.clear();
 			//detections = darknet.yolo(camera.getPixels(), thresh, maxOverlap);
 			detections = yolo.detect(video.getPixels());
+
+			/*for(auto &p : new_detections){
+				
+				for(auto & d:detections)
+
+			}*/
+
+
+		}
+	}
+	
+	// calculate label count
+	labelCount.clear();
+	for (auto &dd : detections) {
+		if (labelCount.find(dd.obj_id) != labelCount.end()) {
+			labelCount[dd.obj_id]++;
+		}else {
+			labelCount[dd.obj_id] = 1;
 		}
 	}
 
@@ -73,6 +93,10 @@ void ofApp::update(){
 		m.addFloatArg(d.w);
 		m.addFloatArg(d.h);
 		m.addFloatArg(d.prob);
+
+		m.addIntArg(d.track_id);
+
+		m.addIntArg(labelCount[d.obj_id]);
 		
 		sender.sendMessage(m, false);
 	}
@@ -106,7 +130,7 @@ void ofApp::draw(){
 		ofNoFill();
 		ofDrawRectangle(d.x,d.y,d.w,d.h);
 		ofDrawBitmapStringHighlight(yolo.getName(d.obj_id) + ": " + ofToString(d.prob), d.x, d.y + 20);
-
+		ofDrawBitmapStringHighlight(ofToString(d.track_id)+"/"+ofToString(labelCount[d.obj_id]), d.x, d.y - 20);
 
 	}
 }

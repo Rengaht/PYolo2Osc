@@ -3,12 +3,23 @@
 //--------------------------------------------------------------
 void ofApp::setup(){
 	
-	std::string cfgfile = ofToDataPath("cfg/yolo9000.cfg");
-	std::string weightfile = ofToDataPath("yolo9000.weights");
-	std::string namesfile = ofToDataPath("cfg/9k.names");
+	
+	
+#ifdef USE_YOLO_9000
+	yolo.setup("9000/yolo9000.cfg","9000/yolo9000.weights","9000/9k.names");
 
-	//darknet.init(cfgfile, weightfile, namesfile);
+	std::ifstream file(ofToDataPath("selected.names"));
+	std::vector<std::string> file_lines;
+	for (std::string line; file >> line;) selected.push_back(line);
+	
+	ofLog() << "Load seleced names:";
+	for (auto &p : selected) ofLog() << p;
+
+#else
 	yolo.setup();
+#endif
+
+
 	yolo.trackHistory = TRACKING_ID_HISTROY;
 
 
@@ -54,13 +65,14 @@ void ofApp::update(){
 
 			detections.clear();
 			//detections = darknet.yolo(camera.getPixels(), thresh, maxOverlap);
-			detections = yolo.detect(video.getPixels());
+			auto new_detections = yolo.detect(video.getPixels());
 
-			/*for(auto &p : new_detections){
-				
-				for(auto & d:detections)
-
-			}*/
+			
+			for(auto &p : new_detections){
+				//ofLog() << p.obj_id<< yolo.getName(p.obj_id);
+				if (std::find(selected.begin(), selected.end(), yolo.getName(p.obj_id)) != selected.end())
+					detections.push_back(p);
+			}
 
 
 		}

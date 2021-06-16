@@ -40,6 +40,9 @@ class ofApp : public ofBaseApp{
 		map<int, int> labelCount;
 
 		ofxOscSender sender;
+
+		vector<string> selected;
+		
 	private:
 		bool setupCamera();
 };

@@ -9,12 +9,11 @@ void ofApp::setup(){
 	yolo.setup("9000/yolo9000.cfg","9000/yolo9000.weights","9000/9k.names");
 
 	std::ifstream file(ofToDataPath("selected.names"));
-	std::vector<std::string> file_lines;
-	for (std::string line; file >> line;) selected.push_back(line);
-	
-	ofLog() << "Load seleced names:";
-	for (auto &p : selected) ofLog() << p;
-
+	if (file.is_open()) {
+		for (std::string line; file >> line;) selected.push_back(line);
+		ofLog() << "Load seleced names:";
+		for (auto &p : selected) ofLog() << p;
+	}
 #else
 	yolo.setup();
 #endif
@@ -70,7 +69,8 @@ void ofApp::update(){
 			
 			for(auto &p : new_detections){
 				//ofLog() << p.obj_id<< yolo.getName(p.obj_id);
-				if (std::find(selected.begin(), selected.end(), yolo.getName(p.obj_id)) != selected.end())
+				if (selected.size() < 1 
+					|| std::find(selected.begin(), selected.end(), yolo.getName(p.obj_id)) != selected.end())
 					detections.push_back(p);
 			}
 

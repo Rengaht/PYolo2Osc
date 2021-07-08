@@ -5,7 +5,7 @@ void ofApp::setup(){
 	
 	
 	
-#ifdef USE_YOLO_9000
+#if defined(USE_YOLO_9000)
 	yolo.setup("9000/yolo9000.cfg","9000/yolo9000.weights","9000/9k.names");
 
 	std::ifstream file(ofToDataPath("selected.names"));
@@ -14,6 +14,11 @@ void ofApp::setup(){
 		ofLog() << "Load seleced names:";
 		for (auto &p : selected) ofLog() << p;
 	}
+#elif defined(USE_YOLO_3)
+
+	//yolo.setup("yolo3/yolov3.cfg", "yolo3/yolov3.weights", "yolo3/coco.names");
+	yolo.setup("yolo3/yolov3-tiny.cfg", "yolo3/yolov3-tiny.weights", "yolo3/coco.names");
+
 #else
 	yolo.setup();
 #endif
@@ -25,13 +30,14 @@ void ofApp::setup(){
 	useCamera = false;
 
 	//ofLog() << "Open video...";
-	video.load("test.mov");
+	video.load("face.mp4");
 	video.setLoopState(ofLoopType::OF_LOOP_NORMAL);
 
 	video.play();
 
 	sender.setup(HOST, PORT);
 
+	spout_sender.init("Camera");
 }
 
 //--------------------------------------------------------------
@@ -53,6 +59,9 @@ void ofApp::update(){
 			detections.clear();
 			//detections = darknet.yolo(camera.getPixels(), thresh, maxOverlap);
 			detections = yolo.detect(camera.getPixels());
+
+			spout_sender.send(camera.getTexture());
+		
 		}
 
 	}
@@ -73,6 +82,8 @@ void ofApp::update(){
 					|| std::find(selected.begin(), selected.end(), yolo.getName(p.obj_id)) != selected.end())
 					detections.push_back(p);
 			}
+
+			spout_sender.send(video.getTexture());
 
 
 		}
@@ -113,6 +124,7 @@ void ofApp::update(){
 		sender.sendMessage(m, false);
 	}
 	
+
 	ofSetWindowTitle(ofToString(ofGetFrameRate()));
 }
 

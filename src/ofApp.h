@@ -4,6 +4,7 @@
 #include "ofxOsc.h"
 //#include "ofxDarknet.h"
 #include "ofxYolo2.h"
+#include "ofxSpout.h"
 
 #define HOST "localhost"
 #define PORT 5555
@@ -14,6 +15,9 @@
 
 
 #define TRACKING_ID_HISTROY 30
+#define USE_YOLO_9000
+//#define USE_YOLO_3
+
 
 class ofApp : public ofBaseApp{
 
@@ -42,6 +46,9 @@ class ofApp : public ofBaseApp{
 		ofxOscSender sender;
 
 		vector<string> selected;
+
+
+		ofxSpout::Sender spout_sender;
 		
 	private:
 		bool setupCamera();

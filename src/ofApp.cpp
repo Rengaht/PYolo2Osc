@@ -36,6 +36,8 @@ void ofApp::setup(){
 	video.play();
 
 	sender.setup(HOST, PORT);
+	receiver.setup(PYTHON_PORT);
+
 
 	spout_sender.init("Camera");
 }
@@ -72,15 +74,20 @@ void ofApp::update(){
 		if (video.isFrameNew()) {
 
 			detections.clear();
+			human_detections.clear();
 			//detections = darknet.yolo(camera.getPixels(), thresh, maxOverlap);
 			auto new_detections = yolo.detect(video.getPixels());
 
 			
 			for(auto &p : new_detections){
 				//ofLog() << p.obj_id<< yolo.getName(p.obj_id);
-				if (selected.size() < 1 
-					|| std::find(selected.begin(), selected.end(), yolo.getName(p.obj_id)) != selected.end())
+				if (selected.size() < 1
+					|| std::find(selected.begin(), selected.end(), yolo.getName(p.obj_id)) != selected.end()) {
+					
+					//ofLog() << p.obj_id;
+					if (p.obj_id == HUMAN_OBJ_ID) human_detections.push_back(p);
 					detections.push_back(p);
+				}
 			}
 
 			spout_sender.send(video.getTexture());
@@ -100,30 +107,11 @@ void ofApp::update(){
 	}
 
 	for (auto d : detections) {
-		ofxOscMessage m;
-		m.setAddress("/detect");
-
-		/*m.addStringArg(d.label);
-		m.addFloatArg(d.rect.x);
-		m.addFloatArg(d.rect.y);
-		m.addFloatArg(d.rect.getWidth());
-		m.addFloatArg(d.rect.getHeight());
-		m.addFloatArg(d.probability);*/
-
-		m.addStringArg(yolo.getName(d.obj_id));
-		m.addFloatArg(d.x);
-		m.addFloatArg(d.y);
-		m.addFloatArg(d.w);
-		m.addFloatArg(d.h);
-		m.addFloatArg(d.prob);
-
-		m.addIntArg(d.track_id);
-
-		m.addIntArg(labelCount[d.obj_id]);
-		
-		sender.sendMessage(m, false);
+		sendDetectOsc(d);
 	}
 	
+	updateReceiver();
+
 
 	ofSetWindowTitle(ofToString(ofGetFrameRate()));
 }
@@ -134,7 +122,7 @@ void ofApp::draw(){
 	if(useCamera) camera.draw(0, 0);
 	else video.draw(0, 0);
 
-
+	ofPushStyle();
 	ofNoFill();
 	for (auto d : detections)
 	{
@@ -157,6 +145,19 @@ void ofApp::draw(){
 		ofDrawBitmapStringHighlight(ofToString(d.track_id)+"/"+ofToString(labelCount[d.obj_id]), d.x, d.y - 20);
 
 	}
+
+	for (auto d : face_detections)
+	{
+		
+		ofSetColor(ofColor::red);
+		ofNoFill();
+		ofDrawRectangle(d.x, d.y, d.w, d.h);
+		ofDrawBitmapStringHighlight(d.gender + " / " + ofToString(d.age)+" / " +d.emotion, d.x, d.y + 20);
+		ofDrawBitmapStringHighlight(ofToString(d.track_id), d.x, d.y - 20);
+
+	}
+
+	ofPopStyle();
 }
 
 //--------------------------------------------------------------
@@ -196,4 +197,106 @@ bool ofApp::setupCamera() {
 
 	return camera.isInitialized();
 	
+}
+
+void ofApp::updateReceiver() {
+
+	face_detections.clear();
+
+	while(receiver.hasWaitingMessages()){
+
+		ofxOscMessage m;
+		receiver.getNextMessage(m);
+
+		if(m.getAddress()=="/face"){
+
+			fbox_t face;
+
+			face.x = m.getArgAsFloat(0);
+			face.y = m.getArgAsFloat(1);
+			face.w = m.getArgAsFloat(2);
+			face.h = m.getArgAsFloat(3);
+
+			face.gender = m.getArgAsString(4);
+			face.age = m.getArgAsFloat(5);
+
+			face.emotion = m.getArgAsString(6);
+			face.track_id = m.getArgAsInt32(7);
+
+			face_detections.push_back(face);
+		}
+
+	}
+
+	
+
+	// remap id
+	for(auto& face : face_detections){
+		
+		ofRectangle rect(face.x, face.y, face.w, face.h);
+		
+		//ofLog() << "current human= " << human_detections.size();
+
+		for (auto& human : human_detections) {
+			ofRectangle rect2(human.x, human.y, human.w, human.h);
+
+			//ofLog() << "compare: " << rect << " => " << rect2;
+
+			if (rect.intersects(rect2)) {
+				ofLog() << "intersect!" <<face.track_id <<" => "<<human.track_id;
+
+				face.track_id = human.track_id;
+				break;
+			}
+			else {
+				ofLog() << "no intersect!";
+			}
+		}
+
+		sendFaceOsc(face);
+
+	}
+
+}
+
+void ofApp::sendFaceOsc(fbox_t d) {
+	ofxOscMessage m;
+	m.setAddress("/face");
+
+	m.addFloatArg(d.x);
+	m.addFloatArg(d.y);
+	m.addFloatArg(d.w);
+	m.addFloatArg(d.h);
+	
+	m.addStringArg(d.gender);
+	m.addFloatArg(d.age);
+	m.addStringArg(d.emotion);
+
+	m.addIntArg(d.track_id);
+
+	sender.sendMessage(m, false);
+}
+void ofApp::sendDetectOsc(bbox_t d) {
+	ofxOscMessage m;
+	m.setAddress("/detect");
+
+	/*m.addStringArg(d.label);
+	m.addFloatArg(d.rect.x);
+	m.addFloatArg(d.rect.y);
+	m.addFloatArg(d.rect.getWidth());
+	m.addFloatArg(d.rect.getHeight());
+	m.addFloatArg(d.probability);*/
+
+	m.addStringArg(yolo.getName(d.obj_id));
+	m.addFloatArg(d.x);
+	m.addFloatArg(d.y);
+	m.addFloatArg(d.w);
+	m.addFloatArg(d.h);
+	m.addFloatArg(d.prob);
+
+	m.addIntArg(d.track_id);
+
+	m.addIntArg(labelCount[d.obj_id]);
+
+	sender.sendMessage(m, false);
 }
